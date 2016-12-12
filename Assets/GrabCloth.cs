@@ -5,7 +5,12 @@ using UnityEngine;
 public class GrabMesh : MonoBehaviour {
 
     public MeshFilter meshFilter;
+    public float moveSensitivity = 1.0f;
     Mesh mesh;
+
+    int grabVertex;
+    bool isGrabbing;
+    Vector3 lastMousePos;
 
 	// Use this for initialization
 	void Start () {
@@ -43,5 +48,27 @@ public class GrabMesh : MonoBehaviour {
         }
         colors[minVertex] = Color.red;
         mesh.colors = colors;
+
+
+        if (Input.GetMouseButtonDown(0))
+        {
+            isGrabbing = true;
+            grabVertex = minVertex;
+        }
+        if (Input.GetMouseButtonUp(0))
+        {
+            isGrabbing = false;
+            grabVertex = -1;
+        }
+
+        if(isGrabbing)
+        {
+            Vector3 dmouse = Input.mousePosition - lastMousePos;
+            Vector3[] verts = mesh.vertices;
+            verts[grabVertex] += dmouse * moveSensitivity;
+            mesh.vertices = verts;
+        }
+
+        lastMousePos = Input.mousePosition;
 	}
 }
