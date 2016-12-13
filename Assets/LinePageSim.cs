@@ -12,6 +12,12 @@ public class LinePageSim : MonoBehaviour {
     public int[] anchoredVertices;
     public float timeScale = 1.0f;
 
+    // Radial heightmaps calculated to prevent inter-page collision
+    Tuple<float, float>[] polar;
+    //public GameObject spine;
+    Vector3 rotOrigin;
+    Vector3 rotAxis;
+
     GrabLine grab;
     LineRenderer line;
     float[] default_inv_mass;
@@ -41,6 +47,7 @@ public class LinePageSim : MonoBehaviour {
 
         ppos = new Vector3[N];
         vel = new Vector3[N];
+        polar = new Tuple<float, float>[N];
 
         restDist = new float[N-1];
         for(int i = 0; i < N-1; i++)
@@ -48,6 +55,21 @@ public class LinePageSim : MonoBehaviour {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
         }
 
+        //rotOrigin = transform.InverseTransformPoint(spine.transform.position);
+        //rotAxis = transform.InverseTransformDirection(spine.transform.forward);
+
+        rotOrigin = new Vector3();
+        rotAxis = transform.InverseTransformDirection(transform.forward);
+        Debug.LogFormat("Origin: {0}", rotOrigin);
+        Debug.LogFormat("Rot: {0}", rotAxis);
+    }
+
+    void GetFloorRegion()
+    {
+    }
+
+    void GetCeilingRegion()
+    {
     }
 
     // Update is called once per frame
@@ -100,6 +122,11 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
+        // Do floor/ceiling check and displace point if out of bounds
+        for (int i = 0; i < N; i++)
+        {
+        }
+
         // Solve constraints
         for(int i = 0; i < constraintSteps; i++)
         {
@@ -113,6 +140,18 @@ public class LinePageSim : MonoBehaviour {
             pos[i] = ppos[i];
         }
         line.SetPositions(pos);
+        
+        // Update polar coords for region calculation
+
+        for(int i = 0; i < N; i++)
+        {
+            float r = Vector3.Distance(pos[i], rotOrigin);
+            Vector3 lp = pos[i] - rotOrigin;
+            float theta = Mathf.Atan2(pos[i].y, pos[i].x);
+
+            polar[i] = new Tuple<float, float>(r, theta);
+        }
+            Debug.LogFormat("Polar {0}: <r{1} t{2}>", N-1, polar[N-1].Item1, polar[N-1].Item2);
     }
 
     public void SolveConstraints()
