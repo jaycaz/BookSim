@@ -22,7 +22,6 @@ public class GrabLine : MonoBehaviour {
         float minDist = Mathf.Infinity;
         int minVertex = -1;
         Vector3 mouseScreen = Input.mousePosition;
-        Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(mouseScreen);
         for(int i = 0; i < N; i++)
         {
             // Find closest point to mouse
@@ -58,6 +57,7 @@ public class GrabLine : MonoBehaviour {
             grabVertex = -1;
         }
 
+        Vector3 mouseWorld = Camera.main.ScreenToWorldPoint(mouseScreen);
         if(isGrabbing)
         {
             Vector3 dmouse = mouseWorld - lastMousePos;
