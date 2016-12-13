@@ -7,8 +7,9 @@ public class GrabLine : MonoBehaviour {
     public LineRenderer line;
     int N;
 
-    bool isGrabbing;
-    int grabVertex;
+    public bool isGrabbing { get; private set; }
+    public int grabVertex { get; private set; }
+    public Vector3 grabVel { get; private set; }
     Vector3 lastMousePos;
 
 	// Use this for initialization
@@ -34,7 +35,7 @@ public class GrabLine : MonoBehaviour {
                 minVertex = i;
             }
         }
-        Debug.LogFormat("Closest vertex: {0} ({1}m)", minVertex, minDist);
+        //Debug.LogFormat("Closest vertex: {0} ({1}m)", minVertex, minDist);
         Debug.DrawRay(Camera.main.transform.position, 
             line.transform.TransformPoint(line.GetPosition(minVertex)) - Camera.main.transform.position,
             Color.red);
@@ -62,6 +63,8 @@ public class GrabLine : MonoBehaviour {
         {
             Vector3 dmouse = mouseWorld - lastMousePos;
             Vector3 pos = line.GetPosition(grabVertex);
+            // TODO: May need to change to Time.fixedDeltaTime
+            grabVel = dmouse / Time.deltaTime;
             pos += dmouse;
             line.SetPosition(grabVertex, pos);
         }
