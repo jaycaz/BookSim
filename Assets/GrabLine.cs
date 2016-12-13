@@ -14,12 +14,12 @@ public class GrabLine : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-        Debug.Assert(line != null);
-        N = line.numPositions;
+        line = GetComponent<LineRenderer>();
 	}
 	
 	// Update is called once per frame
 	void Update () {
+        N = line.numPositions;
         float minDist = Mathf.Infinity;
         int minVertex = -1;
         Vector3 mouseScreen = Input.mousePosition;

@@ -5,13 +5,14 @@ using UnityEngine;
 public class LinePageSim : MonoBehaviour {
 
     // Simulation parameters
+    public int N = 2; // num vertices
     public float totalMass = 0.01f;
     public float stretchStrength = 1.0f;
     public int constraintSteps = 2;
 
     GrabLine grab;
     LineRenderer line;
-    int N; // num vertices
+    float[] default_inv_mass;
     float[] inv_mass;
 
     Vector3[] pos;
@@ -24,12 +25,18 @@ public class LinePageSim : MonoBehaviour {
     void Start()
     {
         grab = GetComponent<GrabLine>();
-        Debug.Assert(grab != null);
         line = GetComponent<LineRenderer>();
-        Debug.Assert(line != null);
-        N = line.numPositions;
+        Debug.Assert(N >= line.numPositions, "N needs to be at least the same as line.numPositions");
+
+        // Get begin and end points from line, and interpolate N points between
         pos = new Vector3[N];
-        line.GetPositions(pos);
+        for(int i = 0; i < N; i++)
+        {
+            pos[i] = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) i / N);
+        }
+        line.numPositions = N;
+        line.SetPositions(pos);
+
         ppos = new Vector3[N];
         vel = new Vector3[N];
 
@@ -39,10 +46,11 @@ public class LinePageSim : MonoBehaviour {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
         }
 
+        default_inv_mass = new float[N];
         inv_mass = new float[N];
         for(int i = 0; i < N; i++)
         {
-            inv_mass[i] = 1.0f / (totalMass / N);
+            default_inv_mass[i] = 1.0f / (totalMass / N);
         }
     }
 
@@ -51,6 +59,12 @@ public class LinePageSim : MonoBehaviour {
     {
         int s = line.GetPositions(pos);
         ppos = pos;
+
+        // Reset mass
+        for(int i = 0; i < N; i++)
+        {
+            inv_mass[i] = default_inv_mass[i];
+        }
         
         // Apply external forces
         // (right now there are none)        
@@ -64,6 +78,7 @@ public class LinePageSim : MonoBehaviour {
         if(grab.isGrabbing)
         {
             vel[grab.grabVertex] = grab.grabVel;
+            inv_mass[grab.grabVertex] = 0.0001f;
         }
 
         for(int i = 0; i < N; i++)
@@ -82,10 +97,6 @@ public class LinePageSim : MonoBehaviour {
         {
             vel[i] = (ppos[i] - pos[i]) / Time.deltaTime;
             pos[i] = ppos[i];
-
-            Debug.DrawLine(line.transform.TransformPoint(pos[i]), 
-                           line.transform.TransformPoint(ppos[i]), 
-                           Color.black);
         }
         line.SetPositions(pos);
     }
