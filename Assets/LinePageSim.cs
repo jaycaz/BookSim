@@ -9,6 +9,7 @@ public class LinePageSim : MonoBehaviour {
     public float totalMass = 0.01f;
     public float stretchStrength = 1.0f;
     public int constraintSteps = 2;
+    public int[] anchoredVertices;
 
     GrabLine grab;
     LineRenderer line;
@@ -66,6 +67,16 @@ public class LinePageSim : MonoBehaviour {
             inv_mass[i] = default_inv_mass[i];
         }
         
+        // Apply mass changes
+        if(grab.isGrabbing)
+        {
+            inv_mass[grab.grabVertex] = 0.0001f;
+        }
+        foreach(var a in anchoredVertices)
+        {
+            inv_mass[a] = 0.0f;
+        }
+
         // Apply external forces
         // (right now there are none)        
 
@@ -78,7 +89,6 @@ public class LinePageSim : MonoBehaviour {
         if(grab.isGrabbing)
         {
             vel[grab.grabVertex] = grab.grabVel;
-            inv_mass[grab.grabVertex] = 0.0001f;
         }
 
         for(int i = 0; i < N; i++)
