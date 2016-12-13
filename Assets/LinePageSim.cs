@@ -10,6 +10,7 @@ public class LinePageSim : MonoBehaviour {
     public float stretchStrength = 1.0f;
     public int constraintSteps = 2;
     public int[] anchoredVertices;
+    public float timeScale = 1.0f;
 
     GrabLine grab;
     LineRenderer line;
@@ -47,17 +48,19 @@ public class LinePageSim : MonoBehaviour {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
         }
 
+    }
+
+    // Update is called once per frame
+    void FixedUpdate()
+    {
+        float dt = Time.fixedDeltaTime * timeScale;
         default_inv_mass = new float[N];
         inv_mass = new float[N];
         for(int i = 0; i < N; i++)
         {
             default_inv_mass[i] = 1.0f / (totalMass / N);
         }
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
         int s = line.GetPositions(pos);
         ppos = pos;
 
@@ -67,23 +70,24 @@ public class LinePageSim : MonoBehaviour {
             inv_mass[i] = default_inv_mass[i];
         }
         
+        // Apply external forces
+        for(int i = 0; i < N; i++)
+        {
+            var f = 10.0f * Vector3.down;
+            vel[i] += f * dt;
+        }
+
         // Apply mass changes
         if(grab.isGrabbing)
         {
             inv_mass[grab.grabVertex] = 0.0001f;
         }
+
+        // Apply velocity change from user input, if any
         foreach(var a in anchoredVertices)
         {
             inv_mass[a] = 0.0f;
-        }
-
-        // Apply external forces
-        // (right now there are none)        
-
-        // Apply velocity change from user input, if any
-        for(int i = 0; i < N; i++)
-        {
-            vel[i] = new Vector3();
+            vel[a] = new Vector3();
         }
 
         if(grab.isGrabbing)
@@ -93,7 +97,7 @@ public class LinePageSim : MonoBehaviour {
 
         for(int i = 0; i < N; i++)
         {
-            ppos[i] = pos[i] + Time.deltaTime * vel[i];
+            ppos[i] = pos[i] + dt * vel[i];
         }
 
         // Solve constraints
@@ -105,7 +109,7 @@ public class LinePageSim : MonoBehaviour {
         // Final position update
         for (int i = 0; i < N; i++)
         {
-            vel[i] = (ppos[i] - pos[i]) / Time.deltaTime;
+            vel[i] = (ppos[i] - pos[i]) / dt;
             pos[i] = ppos[i];
         }
         line.SetPositions(pos);
