@@ -13,10 +13,13 @@ public class LinePageSim : MonoBehaviour {
     public float timeScale = 1.0f;
 
     // Radial heightmaps calculated to prevent inter-page collision
-    Tuple<float, float>[] polar;
-    //public GameObject spine;
+    public Tuple<float, float>[] polar { get; private set; }
+    public GameObject anchor;
     Vector3 rotOrigin;
-    Vector3 rotAxis;
+    float baseAngle;
+    LinePageSim nextPage;
+    LinePageSim prevPage;
+    float extent = 0.0f;
 
     GrabLine grab;
     LineRenderer line;
@@ -34,14 +37,26 @@ public class LinePageSim : MonoBehaviour {
     {
         grab = GetComponent<GrabLine>();
         line = GetComponent<LineRenderer>();
+        anchor = transform.parent.gameObject;
+
+        Debug.Assert(anchor != null, "Page cannot find anchor object as reference");
         Debug.Assert(N >= line.numPositions, "N needs to be at least the same as line.numPositions");
 
         // Get begin and end points from line, and interpolate N points between
+        // Also retransform so we can get make the transform component the identity
         pos = new Vector3[N];
+        baseAngle = Quaternion.Angle(transform.localRotation, Quaternion.identity) * Mathf.Deg2Rad;
         for(int i = 0; i < N; i++)
         {
-            pos[i] = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) i / N);
+            var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) i / N);
+            var r = p.magnitude;
+            var t = Mathf.Atan2(p.y, p.x);
+            if (p.y < 0) t += 2.0f * Mathf.PI;
+
+            t += baseAngle;
+            pos[i] = new Vector3(r * Mathf.Cos(t), r * Mathf.Sin(t), p.z);
         }
+        transform.localRotation = Quaternion.identity;
         line.numPositions = N;
         line.SetPositions(pos);
 
@@ -55,21 +70,87 @@ public class LinePageSim : MonoBehaviour {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
         }
 
-        //rotOrigin = transform.InverseTransformPoint(spine.transform.position);
-        //rotAxis = transform.InverseTransformDirection(spine.transform.forward);
-
-        rotOrigin = new Vector3();
-        rotAxis = transform.InverseTransformDirection(transform.forward);
+        rotOrigin = line.GetPosition(0);
         Debug.LogFormat("Origin: {0}", rotOrigin);
-        Debug.LogFormat("Rot: {0}", rotAxis);
+        Debug.LogFormat("Base Angle: {0}", baseAngle * Mathf.Rad2Deg);
+ 
+        for (int i = 0; i < N; i++)
+        {
+            var dist = Vector3.Distance(pos[i], rotOrigin);
+            if (dist > extent)
+            {
+                extent = dist;
+            }
+        }
+        Debug.LogFormat("Extent: {0}", extent);
     }
 
-    void GetFloorRegion()
+    void FloorRegionCheck()
     {
+        var region = new List<Tuple<float, float>>();
+        if(prevPage)
+        {
+            var p = prevPage.polar;
+            return;
+        }
+        else
+        {
+            region.Add(new Tuple<float, float>(0.0f, 0.0f));
+            region.Add(new Tuple<float, float>(extent, 0.0f));
+        }
+
+        RegionMove(region, true);
     }
 
-    void GetCeilingRegion()
+    void CeilRegionCheck()
     {
+        var region = new List<Tuple<float, float>>();
+        if(prevPage)
+        {
+            var p = prevPage.polar;
+            return;
+        }
+        else
+        {
+            region.Add(new Tuple<float, float>(0.0f, Mathf.PI));
+            region.Add(new Tuple<float, float>(extent, Mathf.PI));
+        }
+
+        RegionMove(region, false);
+    }
+
+    void RegionMove(List<Tuple<float, float>> region, bool floor)
+    {
+        // Move any point if outside of this region
+        for(int i = 0; i < N; i++)
+        {
+            float r = polar[i].Item1;
+            float t = polar[i].Item2;
+
+            for(int j = 0; j < region.Count-1; j++)
+            {
+                // Find portion of region that this point falls between
+                float r0 = region[j].Item1;
+                float r1 = region[j+1].Item1;
+                if(r > r0 && r < r1)
+                {
+                    //Debug.LogFormat("Checking region ({0}, {1})", r0, r1);
+                    float t01 = Mathf.Lerp(region[j].Item2,
+                                            region[j + 1].Item2,
+                                            (r1 - r) / (r1 - r0));
+
+                    // Check if outside interpolated borderline btwn r0, r1
+                    if((!floor && t > t01) || (floor && t < t01))
+                    {
+                        //Debug.LogFormat("Region {0} contact: {1} => {2}", i, t, t01);
+                        // Displace point along theta
+                        pos[i].x = r * Mathf.Cos(t01);
+                        pos[i].y = r * Mathf.Sin(t01);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // Update is called once per frame
@@ -86,8 +167,23 @@ public class LinePageSim : MonoBehaviour {
         int s = line.GetPositions(pos);
         ppos = pos;
 
-        // Reset mass
+        // Update polar coords for region calculation
         for(int i = 0; i < N; i++)
+        {
+            Vector3 p = pos[i];
+            float r = p.magnitude;
+            float theta = Mathf.Atan2(p.y, p.x);
+            if (p.y < 0)
+            {
+                theta += 2.0f * Mathf.PI;
+            }
+
+            polar[i] = new Tuple<float, float>(r, theta);
+        }
+        //Debug.LogFormat("Polar {0} : <{1}, {2}>", N - 1, polar[N - 1].Item1, polar[N - 2].Item2);
+
+        // Reset mass
+        for (int i = 0; i < N; i++)
         {
             inv_mass[i] = default_inv_mass[i];
         }
@@ -122,13 +218,11 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
-        // Do floor/ceiling check and displace point if out of bounds
-        for (int i = 0; i < N; i++)
-        {
-        }
+        FloorRegionCheck();
+        CeilRegionCheck();
 
         // Solve constraints
-        for(int i = 0; i < constraintSteps; i++)
+        for (int i = 0; i < constraintSteps; i++)
         {
             SolveConstraints();
         }
@@ -141,17 +235,6 @@ public class LinePageSim : MonoBehaviour {
         }
         line.SetPositions(pos);
         
-        // Update polar coords for region calculation
-
-        for(int i = 0; i < N; i++)
-        {
-            float r = Vector3.Distance(pos[i], rotOrigin);
-            Vector3 lp = pos[i] - rotOrigin;
-            float theta = Mathf.Atan2(pos[i].y, pos[i].x);
-
-            polar[i] = new Tuple<float, float>(r, theta);
-        }
-            Debug.LogFormat("Polar {0}: <r{1} t{2}>", N-1, polar[N-1].Item1, polar[N-1].Item2);
     }
 
     public void SolveConstraints()
