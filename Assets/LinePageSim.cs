@@ -19,7 +19,7 @@ public class LinePageSim : MonoBehaviour {
     float baseAngle;
     LinePageSim nextPage;
     LinePageSim prevPage;
-    float extent = 0.0f;
+    public float extent = 2.0f;
 
     GrabLine grab;
     LineRenderer line;
@@ -50,11 +50,11 @@ public class LinePageSim : MonoBehaviour {
         {
             var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) i / N);
             var r = p.magnitude;
-            var t = Mathf.Atan2(p.y, p.x);
-            if (p.y < 0) t += 2.0f * Mathf.PI;
+            var t = Mathf.Atan2(p.x, -p.y);
+            if (p.x < 0) t += 2.0f * Mathf.PI;
 
             t += baseAngle;
-            pos[i] = new Vector3(r * Mathf.Cos(t), r * Mathf.Sin(t), p.z);
+            pos[i] = new Vector3(r * Mathf.Sin(t), r * -Mathf.Cos(t), p.z);
         }
         transform.localRotation = Quaternion.identity;
         line.numPositions = N;
@@ -73,50 +73,114 @@ public class LinePageSim : MonoBehaviour {
         rotOrigin = line.GetPosition(0);
         Debug.LogFormat("Origin: {0}", rotOrigin);
         Debug.LogFormat("Base Angle: {0}", baseAngle * Mathf.Rad2Deg);
- 
-        for (int i = 0; i < N; i++)
+    }
+
+    void BoundsCheck()
+    {
+        var floor = GetFloorRegion();
+        var ceil = GetCeilRegion();
+
+        // Check all points and push them back within bounds, if necessary
+        for(int i = 0; i < N; i++)
         {
-            var dist = Vector3.Distance(pos[i], rotOrigin);
-            if (dist > extent)
+            float r = polar[i].Item1;
+            float t = polar[i].Item2;
+            float ft = GetBoundAngle(polar[i], floor, false);
+            float ct = GetBoundAngle(polar[i], ceil, true);
+
+            // Positive = within bounds
+            // If both bounds are < 0, choose the closest bound
+            float dft = t - ft;
+            float dct = ct - t;
+
+            float targetAngle;
+            if (dft >= 0 && dct > 0) continue;
+            else if(dft < 0 && dct < 0)
             {
-                extent = dist;
+                if (dft < dct)
+                    targetAngle = ct;
+                else
+                    targetAngle = ft;
+            }
+            else if(dft < 0)
+            {
+                targetAngle = ft;
+            }
+            else
+            {
+                targetAngle = ct;
+            }
+
+            // Displace point along theta
+            float dx = r * Mathf.Sin(targetAngle) - ppos[i].x;
+            float dy = r * -Mathf.Cos(targetAngle) - ppos[i].y;
+            ppos[i].x += dx;
+            ppos[i].y += dy;
+            vel[i] = new Vector3();
+        }
+
+    }
+
+    List<Tuple<float, float>> GetFloorRegion()
+    {
+        var region = new List<Tuple<float, float>>();
+        if(prevPage)
+        {
+            var p = prevPage.polar;
+        }
+        else
+        {
+            region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2));
+            region.Add(new Tuple<float, float>(extent, Mathf.PI / 2));
+        }
+        return region;
+    }
+
+
+    List<Tuple<float, float>> GetCeilRegion()
+    {
+        var region = new List<Tuple<float, float>>();
+        if(prevPage)
+        {
+            var p = prevPage.polar;
+        }
+        else
+        {
+            region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2));
+            region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2));
+        }
+
+        return region;
+    }
+
+    float GetBoundAngle(Tuple<float, float> p, List<Tuple<float, float>> region, bool ceil)
+    {
+        float r = p.Item1;
+        float t = p.Item2;
+
+        for(int j = 0; j < region.Count-1; j++)
+        {
+            // Find portion of region that this point falls between
+            float r0 = region[j].Item1;
+            float r1 = region[j+1].Item1;
+            if(r >= r0 && r <= r1)
+            {
+                float t01 = Mathf.Lerp(region[j].Item2,
+                                        region[j + 1].Item2,
+                                        (r1 - r) / (r1 - r0));
+
+                return t01;
             }
         }
-        Debug.LogFormat("Extent: {0}", extent);
-    }
 
-    void FloorRegionCheck()
-    {
-        var region = new List<Tuple<float, float>>();
-        if(prevPage)
+        if(ceil)
         {
-            var p = prevPage.polar;
-            return;
+            return Mathf.Infinity;
         }
         else
         {
-            region.Add(new Tuple<float, float>(0.0f, 0.0f));
-            region.Add(new Tuple<float, float>(extent, 0.0f));
+            return -Mathf.Infinity;
         }
-
-        RegionMove(region, true);
-    }
-
-    void CeilRegionCheck()
-    {
-        var region = new List<Tuple<float, float>>();
-        if(prevPage)
-        {
-            var p = prevPage.polar;
-            return;
-        }
-        else
-        {
-            region.Add(new Tuple<float, float>(0.0f, Mathf.PI));
-            region.Add(new Tuple<float, float>(extent, Mathf.PI));
-        }
-
-        RegionMove(region, false);
     }
 
     void RegionMove(List<Tuple<float, float>> region, bool floor)
@@ -124,32 +188,6 @@ public class LinePageSim : MonoBehaviour {
         // Move any point if outside of this region
         for(int i = 0; i < N; i++)
         {
-            float r = polar[i].Item1;
-            float t = polar[i].Item2;
-
-            for(int j = 0; j < region.Count-1; j++)
-            {
-                // Find portion of region that this point falls between
-                float r0 = region[j].Item1;
-                float r1 = region[j+1].Item1;
-                if(r > r0 && r < r1)
-                {
-                    //Debug.LogFormat("Checking region ({0}, {1})", r0, r1);
-                    float t01 = Mathf.Lerp(region[j].Item2,
-                                            region[j + 1].Item2,
-                                            (r1 - r) / (r1 - r0));
-
-                    // Check if outside interpolated borderline btwn r0, r1
-                    if((!floor && t > t01) || (floor && t < t01))
-                    {
-                        //Debug.LogFormat("Region {0} contact: {1} => {2}", i, t, t01);
-                        // Displace point along theta
-                        pos[i].x = r * Mathf.Cos(t01);
-                        pos[i].y = r * Mathf.Sin(t01);
-                        break;
-                    }
-                }
-            }
         }
     }
 
@@ -172,11 +210,9 @@ public class LinePageSim : MonoBehaviour {
         {
             Vector3 p = pos[i];
             float r = p.magnitude;
-            float theta = Mathf.Atan2(p.y, p.x);
-            if (p.y < 0)
-            {
+            float theta = Mathf.Atan2(p.x, -p.y);
+            if (p.x < 0)
                 theta += 2.0f * Mathf.PI;
-            }
 
             polar[i] = new Tuple<float, float>(r, theta);
         }
@@ -218,8 +254,7 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
-        FloorRegionCheck();
-        CeilRegionCheck();
+        BoundsCheck();
 
         // Solve constraints
         for (int i = 0; i < constraintSteps; i++)
