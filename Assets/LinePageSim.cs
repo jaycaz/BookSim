@@ -11,6 +11,7 @@ public class LinePageSim : MonoBehaviour {
     public int constraintSteps = 2;
     public int[] anchoredVertices;
     public float timeScale = 1.0f;
+    public float edgePadding = 0.01f;
 
     // Radial heightmaps calculated to prevent inter-page collision
     public Tuple<float, float>[] polar { get; private set; }
@@ -130,8 +131,8 @@ public class LinePageSim : MonoBehaviour {
         }
         else
         {
-            region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2));
-            region.Add(new Tuple<float, float>(extent, Mathf.PI / 2));
+            region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2 + edgePadding));
+            region.Add(new Tuple<float, float>(extent, Mathf.PI / 2 + edgePadding));
         }
         return region;
     }
@@ -146,8 +147,8 @@ public class LinePageSim : MonoBehaviour {
         }
         else
         {
-            region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2));
-            region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2));
+            region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2 - edgePadding));
+            region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2 - edgePadding));
         }
 
         return region;
@@ -205,17 +206,6 @@ public class LinePageSim : MonoBehaviour {
         int s = line.GetPositions(pos);
         ppos = pos;
 
-        // Update polar coords for region calculation
-        for(int i = 0; i < N; i++)
-        {
-            Vector3 p = pos[i];
-            float r = p.magnitude;
-            float theta = Mathf.Atan2(p.x, -p.y);
-            if (p.x < 0)
-                theta += 2.0f * Mathf.PI;
-
-            polar[i] = new Tuple<float, float>(r, theta);
-        }
         //Debug.LogFormat("Polar {0} : <{1}, {2}>", N - 1, polar[N - 1].Item1, polar[N - 2].Item2);
 
         // Reset mass
@@ -254,8 +244,19 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
-        BoundsCheck();
+        // Update polar coords for boundary calculation
+        for(int i = 0; i < N; i++)
+        {
+            Vector3 p = ppos[i];
+            float r = p.magnitude;
+            float theta = Mathf.Atan2(p.x, -p.y);
+            if (p.x < 0)
+                theta += 2.0f * Mathf.PI;
 
+            polar[i] = new Tuple<float, float>(r, theta);
+        }
+
+        BoundsCheck();
         // Solve constraints
         for (int i = 0; i < constraintSteps; i++)
         {
