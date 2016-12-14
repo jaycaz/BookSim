@@ -8,6 +8,8 @@ public class PageCollection : MonoBehaviour {
     List<LinePageSim> lPages;
     List<LinePageSim> rPages;
 
+    public int initialTicks = 10;
+
     public bool allPagesActive = false;
     
     public bool isGrabbing { get; private set; }
@@ -16,52 +18,67 @@ public class PageCollection : MonoBehaviour {
     public Vector3 grabVel { get; private set; }
     Vector3 lastMousePos;
 
-	// Use this for initialization
-	void Start () {
+    // Use this for initialization
+    void Start()
+    {
         // Add all child pages to list
         pages = new List<LinePageSim>();
         lPages = new List<LinePageSim>();
         rPages = new List<LinePageSim>();
 
-        for(int i = 0; i < transform.GetChildCount(); i++)
+        for (int i = 0; i < transform.GetChildCount(); i++)
         {
             GameObject c = transform.GetChild(i).gameObject;
             LinePageSim page = c.GetComponentInChildren<LinePageSim>();
-            if(page)
+            if (page)
             {
                 page.pages = GetComponent<PageCollection>();
                 pages.Add(page);
                 rPages.Add(page);
+            }
 
-                if(!allPagesActive)
-                {
-                    page.move = false;
-                }
-            }
-            // Only activate top pages on L/R side
-            if(rPages.Count > 0)
-            {
-                rPages[0].move = true;
-            }
         }
 
         // Establish page/page connections
-        for(int i = 0; i < pages.Count; i++)
+        for (int i = 0; i < pages.Count; i++)
         {
-            if(i > 0)
+            if (i > 0)
             {
                 pages[i].prevPage = pages[i - 1];
             }
-            if(i < pages.Count-1)
+            if (i < pages.Count - 1)
             {
                 pages[i].nextPage = pages[i + 1];
             }
         }
-	}
 
-    // Update is called once per frame
-    void Update() {
+        if (!allPagesActive)
+        {
+            // Run for a few ticks so pages can settle before locking them
+            for (int i = 0; i < initialTicks; i++)
+            {
+                RunAllPages();
+            }
 
+            // Now lock pages
+            for (int i = 0; i < pages.Count; i++)
+            {
+                if (!allPagesActive)
+                {
+                    pages[i].move = false;
+                }
+            }
+
+            // Only activate top page
+            if (rPages.Count > 0)
+            {
+                rPages[0].move = true;
+            }
+        }
+    }
+
+    void RunAllPages()
+    {
         // Run all simulations from bottom to top (i.e. forwards for L pages, backwards for R pages)
         for (int i = rPages.Count - 1; i >= 0; i--)
         {
@@ -72,6 +89,12 @@ public class PageCollection : MonoBehaviour {
         {
             lPages[i].GetComponent<LinePageSim>().Tick();
         }
+    }
+
+    // Update is called once per frame
+    void Update() {
+
+        RunAllPages();
 
         // Calculate closest point from all lines to mouse
         float minDist = Mathf.Infinity;
