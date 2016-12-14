@@ -62,9 +62,15 @@ public class PageCollection : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
-        // Run all simulations in pagewise order
-        for(int i = 0; i < rPages.Count; i++)
+        // Run all simulations from bottom to top (i.e. forwards for L pages, backwards for R pages)
+        for(int i = rPages.Count-1; i >= 0; i--)
         {
+            rPages[i].GetComponent<LinePageSim>().Tick();
+        }
+
+        for (int i = 0; i < lPages.Count; i++)
+        {
+            lPages[i].GetComponent<LinePageSim>().Tick();
         }
 
         // Calculate closest point from all lines to mouse

@@ -228,7 +228,9 @@ public class LinePageSim : MonoBehaviour {
     }
 
     // Update is called once per frame
-    void FixedUpdate()
+    //void FixedUpdate()
+
+    public void Tick()
     {
         if(!move)
         {
