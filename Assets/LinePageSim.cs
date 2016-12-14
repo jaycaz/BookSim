@@ -12,17 +12,19 @@ public class LinePageSim : MonoBehaviour {
     public int[] anchoredVertices;
     public float timeScale = 1.0f;
     public float edgePadding = 0.01f;
+    public float extent = 2.0f;
 
     // Radial heightmaps calculated to prevent inter-page collision
     public Tuple<float, float>[] polar { get; private set; }
-    public GameObject anchor;
+    GameObject anchor;
     Vector3 rotOrigin;
     float baseAngle;
-    LinePageSim nextPage;
-    LinePageSim prevPage;
-    public float extent = 2.0f;
+    public LinePageSim nextPage;
+    public LinePageSim prevPage;
 
-    GrabLine grab;
+    bool isGrabbing;
+    public PageCollection pages;
+    int grabVertex;
     LineRenderer line;
     float[] default_inv_mass;
     float[] inv_mass;
@@ -36,7 +38,6 @@ public class LinePageSim : MonoBehaviour {
     // Use this for initialization
     void Start()
     {
-        grab = GetComponent<GrabLine>();
         line = GetComponent<LineRenderer>();
         anchor = transform.parent.gameObject;
 
@@ -49,7 +50,7 @@ public class LinePageSim : MonoBehaviour {
         baseAngle = Quaternion.Angle(transform.localRotation, Quaternion.identity) * Mathf.Deg2Rad;
         for(int i = 0; i < N; i++)
         {
-            var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) i / N);
+            var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) (i+1) / N);
             var r = p.magnitude;
             var t = Mathf.Atan2(p.x, -p.y);
             if (p.x < 0) t += 2.0f * Mathf.PI;
@@ -71,9 +72,26 @@ public class LinePageSim : MonoBehaviour {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
         }
 
+        UpdatePolarCoords();
+
         rotOrigin = line.GetPosition(0);
         Debug.LogFormat("Origin: {0}", rotOrigin);
         Debug.LogFormat("Base Angle: {0}", baseAngle * Mathf.Rad2Deg);
+    }
+
+    void UpdatePolarCoords()
+    {
+        // Update polar coordinates for boundary calculation
+        for(int i = 0; i < N; i++)
+        {
+            Vector3 p = ppos[i];
+            float r = p.magnitude;
+            float theta = Mathf.Atan2(p.x, -p.y);
+            if (p.x < 0)
+                theta += 2.0f * Mathf.PI;
+
+            polar[i] = new Tuple<float, float>(r, theta);
+        }
     }
 
     void BoundsCheck()
@@ -95,29 +113,34 @@ public class LinePageSim : MonoBehaviour {
             float dct = ct - t;
 
             float targetAngle;
-            if (dft >= 0 && dct > 0) continue;
-            else if(dft < 0 && dct < 0)
-            {
-                if (dft < dct)
-                    targetAngle = ct;
-                else
-                    targetAngle = ft;
-            }
-            else if(dft < 0)
-            {
-                targetAngle = ft;
-            }
-            else
-            {
-                targetAngle = ct;
-            }
+            //if (dft >= 0 && dct >= 0) continue;
+            //else if(dft < 0 && dct < 0)
+            //{
+            //    if (dft < dct)
+            //        targetAngle = ct;
+            //    else
+            //        targetAngle = ft;
+            //}
+            //else if(dft < 0)
+            //{
+            //    targetAngle = ft;
+            //}
+            //else
+            //{
+            //    targetAngle = ct;
+            //}
+            if (dft >= 0) continue;
+
+            targetAngle = ft;
 
             // Displace point along theta
             float dx = r * Mathf.Sin(targetAngle) - ppos[i].x;
             float dy = r * -Mathf.Cos(targetAngle) - ppos[i].y;
+            //pos[i].x += dx;
+            //pos[i].y += dy;
             ppos[i].x += dx;
             ppos[i].y += dy;
-            vel[i] = new Vector3();
+            //vel[i] = new Vector3();
         }
 
     }
@@ -125,31 +148,49 @@ public class LinePageSim : MonoBehaviour {
     List<Tuple<float, float>> GetFloorRegion()
     {
         var region = new List<Tuple<float, float>>();
-        if(prevPage)
+        region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2 + edgePadding));
+        if(nextPage)
         {
-            var p = prevPage.polar;
+            var p = nextPage.polar;
+            float maxR = -1.0f;
+            for(int i = 0; i < p.Length; i++)
+            {
+                float r = p[i].Item1;
+                float t = p[i].Item2;
+
+                if(r > maxR)
+                {
+                    maxR = r;
+                    // TODO: the 4* is a hack, figure out how to get it to work without it
+                    region.Add(new Tuple<float, float>(r, t + 4 * edgePadding));
+                }
+            }
         }
-        else
-        {
-            region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2 + edgePadding));
-            region.Add(new Tuple<float, float>(extent, Mathf.PI / 2 + edgePadding));
-        }
+        region.Add(new Tuple<float, float>(extent, Mathf.PI / 2 + edgePadding));
         return region;
     }
-
 
     List<Tuple<float, float>> GetCeilRegion()
     {
         var region = new List<Tuple<float, float>>();
+        region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2 - edgePadding));
         if(prevPage)
         {
             var p = prevPage.polar;
+            float maxR = -1.0f;
+            for(int i = 0; i < p.Length; i++)
+            {
+                float r = p[i].Item1;
+                float t = p[i].Item2;
+
+                if(r > maxR)
+                {
+                    maxR = r;
+                    region.Add(new Tuple<float, float>(r, t - 4 * edgePadding));
+                }
+            }
         }
-        else
-        {
-            region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2 - edgePadding));
-            region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2 - edgePadding));
-        }
+        region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2 - edgePadding));
 
         return region;
     }
@@ -184,14 +225,6 @@ public class LinePageSim : MonoBehaviour {
         }
     }
 
-    void RegionMove(List<Tuple<float, float>> region, bool floor)
-    {
-        // Move any point if outside of this region
-        for(int i = 0; i < N; i++)
-        {
-        }
-    }
-
     // Update is called once per frame
     void FixedUpdate()
     {
@@ -222,9 +255,9 @@ public class LinePageSim : MonoBehaviour {
         }
 
         // Apply mass changes
-        if(grab.isGrabbing)
+        if(pages.grabLine == line)
         {
-            inv_mass[grab.grabVertex] = 0.0001f;
+            inv_mass[pages.grabVertex] = 0.0001f;
         }
 
         // Apply velocity change from user input, if any
@@ -234,9 +267,9 @@ public class LinePageSim : MonoBehaviour {
             vel[a] = new Vector3();
         }
 
-        if(grab.isGrabbing)
+        if(pages.grabLine == line)
         {
-            vel[grab.grabVertex] = grab.grabVel;
+            vel[pages.grabVertex] = pages.grabVel;
         }
 
         for(int i = 0; i < N; i++)
@@ -244,22 +277,12 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
-        // Update polar coords for boundary calculation
-        for(int i = 0; i < N; i++)
-        {
-            Vector3 p = ppos[i];
-            float r = p.magnitude;
-            float theta = Mathf.Atan2(p.x, -p.y);
-            if (p.x < 0)
-                theta += 2.0f * Mathf.PI;
+        UpdatePolarCoords();
 
-            polar[i] = new Tuple<float, float>(r, theta);
-        }
-
-        BoundsCheck();
         // Solve constraints
         for (int i = 0; i < constraintSteps; i++)
         {
+            BoundsCheck();
             SolveConstraints();
         }
 
