@@ -21,7 +21,6 @@ GameObject:
   - component: {fileID: 4493274607785852}
   - component: {fileID: 120569485423475430}
   - component: {fileID: 114118471950233102}
-  - component: {fileID: 114604881254400386}
   - component: {fileID: 23640648741241986}
   - component: {fileID: 33383266716347826}
   m_Layer: 0
@@ -53,7 +52,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1761731946634970}
   m_LocalRotation: {x: -0, y: -0, z: -0.0000014603138, w: 1}
-  m_LocalPosition: {x: 0.032, y: 0, z: 0}
+  m_LocalPosition: {x: 0.0606, y: -0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 4493274607785852}
@@ -132,19 +131,7 @@ MonoBehaviour:
   extent: 2
   nextPage: {fileID: 0}
   prevPage: {fileID: 0}
---- !u!114 &114604881254400386
-MonoBehaviour:
-  m_ObjectHideFlags: 1
-  m_PrefabParentObject: {fileID: 0}
-  m_PrefabInternal: {fileID: 100100000}
-  m_GameObject: {fileID: 1606327837000896}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a50fa0732ec38364198d4d71dbb05d52, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  line: {fileID: 120569485423475430}
-  maxGrabDist: 0.1
+  pages: {fileID: 0}
 --- !u!120 &120569485423475430
 LineRenderer:
   m_ObjectHideFlags: 1

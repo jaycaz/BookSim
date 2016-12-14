@@ -14,6 +14,8 @@ public class LinePageSim : MonoBehaviour {
     public float edgePadding = 0.01f;
     public float extent = 2.0f;
 
+    public bool move = true;
+
     // Radial heightmaps calculated to prevent inter-page collision
     public Tuple<float, float>[] polar { get; private set; }
     GameObject anchor;
@@ -113,25 +115,26 @@ public class LinePageSim : MonoBehaviour {
             float dct = ct - t;
 
             float targetAngle;
-            //if (dft >= 0 && dct >= 0) continue;
-            //else if(dft < 0 && dct < 0)
-            //{
-            //    if (dft < dct)
-            //        targetAngle = ct;
-            //    else
-            //        targetAngle = ft;
-            //}
-            //else if(dft < 0)
-            //{
-            //    targetAngle = ft;
-            //}
-            //else
-            //{
-            //    targetAngle = ct;
-            //}
-            if (dft >= 0) continue;
+            if (dft >= 0 && dct >= 0) continue;
+            else if (dft < 0 && dct < 0)
+            {
+                if (dft < dct)
+                    targetAngle = ct;
+                else
+                    targetAngle = ft;
+            }
+            else if (dft < 0)
+            {
+                targetAngle = ft;
+            }
+            else
+            {
+                targetAngle = ct;
+            }
 
-            targetAngle = ft;
+            //// Floor only
+            //if (dft >= 0) continue;
+            //targetAngle = ft;
 
             // Displace point along theta
             float dx = r * Mathf.Sin(targetAngle) - ppos[i].x;
@@ -228,6 +231,12 @@ public class LinePageSim : MonoBehaviour {
     // Update is called once per frame
     void FixedUpdate()
     {
+        if(!move)
+        {
+            UpdatePolarCoords();
+            return;
+        }
+
         float dt = Time.fixedDeltaTime * timeScale;
         default_inv_mass = new float[N];
         inv_mass = new float[N];

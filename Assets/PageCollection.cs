@@ -28,8 +28,14 @@ public class PageCollection : MonoBehaviour {
             if(page)
             {
                 page.pages = GetComponent<PageCollection>();
+                page.move = false;
                 pages.Add(page);
                 rPages.Add(page);
+            }
+            // Only activate top pages on L/R side
+            if(rPages.Count > 1)
+            {
+                rPages[0].move = true;
             }
         }
 
@@ -57,6 +63,12 @@ public class PageCollection : MonoBehaviour {
         Vector3 mouseScreen = Input.mousePosition;
         for(int i = 0; i < pages.Count; i++)
         {
+            // Only moving pages can be grabbed
+            if(!pages[i].move)
+            {
+                continue;
+
+            }
             for(int j = 0; j < pages[i].N; j++)
             {
                 // Find closest point to mouse
@@ -68,7 +80,10 @@ public class PageCollection : MonoBehaviour {
                 {
                     minDist = dist;
                     minLine = line;
-                    minVertex = j;
+                    //minVertex = j;
+
+                    // Snapping to end of page for now
+                    minVertex = pages[i].N - 1;
                 }
             }
         }
@@ -113,25 +128,68 @@ public class PageCollection : MonoBehaviour {
         // Moving across y axis switches page status
         if(grabLine)
         {
-            //var v = grabLine.GetPosition(grabVertex);
-            //var grabPage = grabLine.GetComponent<LinePageSim>();
-            //if(v.x < 0)
-            //{
-                
-            //}
+            var v = grabLine.GetPosition(grabVertex);
+            var grabPage = grabLine.GetComponent<LinePageSim>();
+            if (v.x < 0 && !lPages.Contains(grabPage))
+            {
+                if(lPages.Count > 0)
+                {
+                    lPages[lPages.Count - 1].move = false;
+                }
+                lPages.Add(grabPage);
+                rPages.Remove(grabPage);
+                if(rPages.Count > 0)
+                {
+                    rPages[0].move = true;
+                }
+            }
+
+            if(v.x > 0 && !rPages.Contains(grabPage))
+            {
+                if(rPages.Count > 0)
+                {
+                    rPages[0].move = false;
+                }
+                rPages.Insert(0, grabPage);
+                lPages.Remove(grabPage);
+                if(lPages.Count > 0)
+                {
+                    lPages[lPages.Count - 1].move = true;
+                }
+            }
         }
 
         // Recolor pages to label them
         foreach(var p in rPages)
         {
-            p.GetComponent<LineRenderer>().startColor = Color.red;
-            p.GetComponent<LineRenderer>().endColor = Color.red;
+            Color targetColor;
+            if(p.move)
+            {
+                targetColor = Color.red;
+            }
+            else
+            {
+                targetColor = Color.grey;
+            }
+
+            p.GetComponent<LineRenderer>().startColor = targetColor;
+            p.GetComponent<LineRenderer>().endColor = targetColor;
         }
 
         foreach(var p in lPages)
         {
-            p.GetComponent<LineRenderer>().startColor = Color.magenta;
-            p.GetComponent<LineRenderer>().endColor = Color.magenta;
+            Color targetColor;
+            if(p.move)
+            {
+                targetColor = Color.magenta;
+            }
+            else
+            {
+                targetColor = Color.grey;
+            }
+
+            p.GetComponent<LineRenderer>().startColor = targetColor;
+            p.GetComponent<LineRenderer>().endColor = targetColor;
         }
 
 
