@@ -58,12 +58,12 @@ public class PageCollection : MonoBehaviour {
             }
         }
 	}
-	
-	// Update is called once per frame
-	void Update () {
+
+    // Update is called once per frame
+    void Update() {
 
         // Run all simulations from bottom to top (i.e. forwards for L pages, backwards for R pages)
-        for(int i = rPages.Count-1; i >= 0; i--)
+        for (int i = rPages.Count - 1; i >= 0; i--)
         {
             rPages[i].GetComponent<LinePageSim>().Tick();
         }
