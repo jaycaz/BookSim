@@ -7,6 +7,8 @@ public class PageCollection : MonoBehaviour {
     List<LinePageSim> pages;
     List<LinePageSim> lPages;
     List<LinePageSim> rPages;
+
+    public bool allPagesActive = false;
     
     public bool isGrabbing { get; private set; }
     public LineRenderer grabLine { get; private set; }
@@ -28,12 +30,16 @@ public class PageCollection : MonoBehaviour {
             if(page)
             {
                 page.pages = GetComponent<PageCollection>();
-                page.move = false;
                 pages.Add(page);
                 rPages.Add(page);
+
+                if(!allPagesActive)
+                {
+                    page.move = false;
+                }
             }
             // Only activate top pages on L/R side
-            if(rPages.Count > 1)
+            if(rPages.Count > 0)
             {
                 rPages[0].move = true;
             }
@@ -56,6 +62,11 @@ public class PageCollection : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
+        // Run all simulations in pagewise order
+        for(int i = 0; i < rPages.Count; i++)
+        {
+        }
+
         // Calculate closest point from all lines to mouse
         float minDist = Mathf.Infinity;
         LineRenderer minLine = null;
@@ -67,7 +78,6 @@ public class PageCollection : MonoBehaviour {
             if(!pages[i].move)
             {
                 continue;
-
             }
             for(int j = 0; j < pages[i].N; j++)
             {
@@ -132,13 +142,13 @@ public class PageCollection : MonoBehaviour {
             var grabPage = grabLine.GetComponent<LinePageSim>();
             if (v.x < 0 && !lPages.Contains(grabPage))
             {
-                if(lPages.Count > 0)
+                if(lPages.Count > 0 && !allPagesActive)
                 {
                     lPages[lPages.Count - 1].move = false;
                 }
                 lPages.Add(grabPage);
                 rPages.Remove(grabPage);
-                if(rPages.Count > 0)
+                if(rPages.Count > 0 && !allPagesActive)
                 {
                     rPages[0].move = true;
                 }
@@ -146,13 +156,13 @@ public class PageCollection : MonoBehaviour {
 
             if(v.x > 0 && !rPages.Contains(grabPage))
             {
-                if(rPages.Count > 0)
+                if(rPages.Count > 0 && !allPagesActive)
                 {
                     rPages[0].move = false;
                 }
                 rPages.Insert(0, grabPage);
                 lPages.Remove(grabPage);
-                if(lPages.Count > 0)
+                if(lPages.Count > 0 && !allPagesActive)
                 {
                     lPages[lPages.Count - 1].move = true;
                 }

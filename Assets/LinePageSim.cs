@@ -164,8 +164,7 @@ public class LinePageSim : MonoBehaviour {
                 if(r > maxR)
                 {
                     maxR = r;
-                    // TODO: the 4* is a hack, figure out how to get it to work without it
-                    region.Add(new Tuple<float, float>(r, t + 4 * edgePadding));
+                    region.Add(new Tuple<float, float>(r, t + edgePadding));
                 }
             }
         }
@@ -189,7 +188,7 @@ public class LinePageSim : MonoBehaviour {
                 if(r > maxR)
                 {
                     maxR = r;
-                    region.Add(new Tuple<float, float>(r, t - 4 * edgePadding));
+                    region.Add(new Tuple<float, float>(r, t - edgePadding));
                 }
             }
         }
@@ -286,11 +285,10 @@ public class LinePageSim : MonoBehaviour {
             ppos[i] = pos[i] + dt * vel[i];
         }
 
-        UpdatePolarCoords();
-
         // Solve constraints
         for (int i = 0; i < constraintSteps; i++)
         {
+            UpdatePolarCoords();
             BoundsCheck();
             SolveConstraints();
         }
