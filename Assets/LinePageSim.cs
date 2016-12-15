@@ -8,6 +8,7 @@ public class LinePageSim : MonoBehaviour {
     public int N = 2; // num vertices
     public float totalMass = 0.01f;
     public float stretchStrength = 1.0f;
+    public float bendStrength = 1.0f;
     public int constraintSteps = 2;
     public int[] anchoredVertices;
     public float timeScale = 1.0f;
@@ -39,6 +40,7 @@ public class LinePageSim : MonoBehaviour {
     Vector3[] vel;
 
     float[] restDist;
+    float[] restBend;
 
     // Use this for initialization
     void Start()
@@ -55,6 +57,9 @@ public class LinePageSim : MonoBehaviour {
         baseAngle = Quaternion.Angle(transform.localRotation, Quaternion.identity) * Mathf.Deg2Rad;
         for(int i = 0; i < N; i++)
         {
+            // TODO: Experiment with nonlinear meshing, as used here. Note, you'll have to fix the mesh uv stuff
+            //var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions - 1), (float)Mathf.Pow(N, (i - N) / 10.0f));
+
             var p = Vector3.Lerp(line.GetPosition(0), line.GetPosition(line.numPositions-1), (float) (i+1) / N);
             var r = p.magnitude;
             var t = Mathf.Atan2(p.x, -p.y);
@@ -75,6 +80,13 @@ public class LinePageSim : MonoBehaviour {
         for(int i = 0; i < N-1; i++)
         {
             restDist[i] = Vector3.Distance(pos[i + 1], pos[i]);
+        }
+
+        restBend = new float[N-2];
+        for(int i = 0; i < N-2; i++)
+        {
+            restBend[i] = Mathf.Acos(Vector3.Dot((pos[i] - pos[i+1]).normalized, (pos[i+2] - pos[i+1]).normalized));
+            Debug.LogFormat("Bend {0}: {1}", i, restBend[i]);
         }
 
         UpdatePolarCoords();
@@ -314,16 +326,73 @@ public class LinePageSim : MonoBehaviour {
 
     public void SolveConstraints()
     {
-        // Update stretch constraints
-        for(int i = 0; i < N-1; i++)
+        for (int i = 0; i < N - 1; i++)
         {
+            // Calculate stretch constraints
             Vector3 d = (ppos[i] - ppos[i + 1]);
-            float s = (d.magnitude - restDist[i]) / (inv_mass[i] + inv_mass[i+1]);
+            float s = (d.magnitude - restDist[i]) / (inv_mass[i] + inv_mass[i + 1]);
             Vector3 dp0 = -inv_mass[i] * s * d.normalized;
             Vector3 dp1 = inv_mass[i + 1] * s * d.normalized;
 
             ppos[i] += stretchStrength * dp0;
             ppos[i+1] += stretchStrength * dp1;
+
+
+  //          // Update rotations
+  //          // TOOD: Make this work
+  //          if (i < N - 2)
+  //          {
+  //              Vector3 d0 = d;
+  //              Vector3 d1 = (ppos[i+2] - ppos[i+1]);
+  //              Vector3 axis = -transform.forward;
+
+  //              Vector3 N0 = Vector3.Cross(axis, d0);
+  //              Vector3 N1 = Vector3.Cross(axis, d1);
+  //              Vector3 n0 = N0.normalized;
+  //              Vector3 n1 = N1.normalized;
+
+  //              float dot = Vector3.Dot(d0, d1);
+  //              float dot2 = dot * dot;
+
+  //              Vector3 q3 = (Vector3.Cross(axis,n1) + (Vector3.Cross(n0,axis) * dot)) / (Vector3.Cross(axis,d0)).magnitude;
+  //              Vector3 q4 = (Vector3.Cross(axis,n0) + (Vector3.Cross(n1,axis) * dot)) / (Vector3.Cross(axis,d1)).magnitude;
+  //              Vector3 q2 = - ((Vector3.Cross(d0,n1) + (Vector3.Cross(n0,d0) * dot)) / Vector3.Cross(axis,d0).magnitude)
+  //                           - ((Vector3.Cross(d1,n0) + (Vector3.Cross(n1,d1) * dot)) / Vector3.Cross(axis,d1).magnitude);
+  //              Vector3 q1 = -q2 - q3 - q4;
+
+  //              float denom = inv_mass[i+1] * q1.sqrMagnitude
+  //                          + inv_mass[i+1] * q2.sqrMagnitude
+  //                          + inv_mass[i] * q3.sqrMagnitude
+  //                          + inv_mass[i+2] * q4.sqrMagnitude;
+
+  //              ppos[i+1] += bendStrength * q1 * -(inv_mass[i+1] * Mathf.Sqrt(1.0f - dot2)) * (Mathf.Acos(dot) - restBend[i]) / denom;
+  //              ppos[i+1] += bendStrength * q2 * -(inv_mass[i+1] * Mathf.Sqrt(1.0f - dot2)) * (Mathf.Acos(dot) - restBend[i]) / denom;
+  //              ppos[i] += bendStrength * q3 * -(inv_mass[i] * Mathf.Sqrt(1.0f - dot2)) * (Mathf.Acos(dot) - restBend[i]) / denom;
+  //              ppos[i+2] += bendStrength * q4 * -(inv_mass[i+2] * Mathf.Sqrt(1.0f - dot2)) * (Mathf.Acos(dot) - restBend[i]) / denom;
+
+
+  //              /*
+		//ofVec3f q3 = (axis.crossed(n1) + (n0.crossed(axis) * dot)) / (axis.crossed(d0)).length();
+		//ofVec3f q4 = (axis.crossed(n0) + (n1.crossed(axis) * dot)) / (axis.crossed(d1)).length();
+		//ofVec3f q2 = - ((d0.crossed(n1) + (n0.crossed(d0) * dot)) / axis.crossed(d0).length())
+		//		     - ((d1.crossed(n0) + (n1.crossed(d1) * dot)) / axis.crossed(d1).length());
+		//ofVec3f q1 = -q2 - q3 - q4;
+
+		//float denom = invPointMass[t.p1] * q1.lengthSquared()
+		//			+ invPointMass[t.axis] * q2.lengthSquared()
+		//			+ invPointMass[t.d0] * q3.lengthSquared()
+		//			+ invPointMass[t.d1] * q4.lengthSquared();
+
+		//ppos[t.p1] += BEND_STRENGTH * q1 * -(invPointMass[t.p1] * sqrtf(1.0f - dot*dot)) * (acosf(dot) - restBend[i]) / denom;
+		//ppos[t.axis] += BEND_STRENGTH * q2 * -(invPointMass[t.axis] * sqrtf(1.0f - dot*dot)) * (acosf(dot) - restBend[i]) / denom;
+		//ppos[t.d0] += BEND_STRENGTH * q3 * -(invPointMass[t.d0] * sqrtf(1.0f - dot*dot)) * (acosf(dot) - restBend[i]) / denom;
+		//ppos[t.d1] += BEND_STRENGTH * q4 * -(invPointMass[t.d1] * sqrtf(1.0f - dot*dot)) * (acosf(dot) - restBend[i]) / denom;
+  //               */
+  //          }
+
+
+            //ppos[t.p1] += BEND_STRENGTH * q1 * -(invPointMass[t.p1] * sqrtf(1.0f - d * d)) * (acosf(d) - restBend[i]) / denom;
+
         }
     }
 }
