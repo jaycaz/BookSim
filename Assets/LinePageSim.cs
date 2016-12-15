@@ -16,6 +16,9 @@ public class LinePageSim : MonoBehaviour {
 
     public bool move = true;
 
+    float CEIL_MAX = 3 * Mathf.PI / 2;
+    float FLOOR_MIN = Mathf.PI / 2;
+
     // Radial heightmaps calculated to prevent inter-page collision
     public Tuple<float, float>[] polar { get; private set; }
     GameObject anchor;
@@ -151,7 +154,7 @@ public class LinePageSim : MonoBehaviour {
     List<Tuple<float, float>> GetFloorRegion()
     {
         var region = new List<Tuple<float, float>>();
-        region.Add(new Tuple<float, float>(0.0f, Mathf.PI / 2 + edgePadding));
+        region.Add(new Tuple<float, float>(0.0f, FLOOR_MIN + edgePadding));
         if(nextPage)
         {
             var p = nextPage.polar;
@@ -167,15 +170,17 @@ public class LinePageSim : MonoBehaviour {
                     region.Add(new Tuple<float, float>(r, t + edgePadding));
                 }
             }
+            // Add extra region to mark end of page
+            region.Add(new Tuple<float, float>(p[p.Length-1].Item1 + Mathf.Epsilon, FLOOR_MIN + edgePadding));
         }
-        region.Add(new Tuple<float, float>(extent, Mathf.PI / 2 + edgePadding));
+        region.Add(new Tuple<float, float>(extent, FLOOR_MIN + edgePadding));
         return region;
     }
 
     List<Tuple<float, float>> GetCeilRegion()
     {
         var region = new List<Tuple<float, float>>();
-        region.Add(new Tuple<float, float>(0.0f, 3 * Mathf.PI / 2 - edgePadding));
+        region.Add(new Tuple<float, float>(0.0f, CEIL_MAX - edgePadding));
         if(prevPage)
         {
             var p = prevPage.polar;
@@ -191,8 +196,10 @@ public class LinePageSim : MonoBehaviour {
                     region.Add(new Tuple<float, float>(r, t - edgePadding));
                 }
             }
+            // Add extra region to mark end of page
+            region.Add(new Tuple<float, float>(p[p.Length-1].Item1 + Mathf.Epsilon, CEIL_MAX - edgePadding));
         }
-        region.Add(new Tuple<float, float>(extent, 3 * Mathf.PI / 2 - edgePadding));
+        region.Add(new Tuple<float, float>(extent, CEIL_MAX - edgePadding));
 
         return region;
     }

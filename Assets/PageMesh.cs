@@ -29,6 +29,7 @@ public class PageMesh : MonoBehaviour {
         // Create vertices along line points; connect with tris
         var verts = new List<Vector3>();
         var tris = new List<int>();
+        var uv = new List<Vector2>();
         for (int i = 0; i < line.numPositions; i++)
         {
             Vector3 p = line.GetPosition(i);
@@ -36,6 +37,22 @@ public class PageMesh : MonoBehaviour {
             verts.Add(v0);
             Vector3 v1 = new Vector3(p.x, p.y, -pageHeight / 2);
             verts.Add(v1);
+
+            // Add uv coords for texture
+            if(front)
+            {
+                Vector2 uv0 = new Vector2((float) i / (line.numPositions-1), 0.0f);
+                uv.Add(uv0);
+                Vector2 uv1 = new Vector2((float) i / (line.numPositions-1), 1.0f);
+                uv.Add(uv1);
+            }
+            else
+            {
+                Vector2 uv0 = new Vector2(1.0f - (float) i / (line.numPositions-1), 0.0f);
+                uv.Add(uv0);
+                Vector2 uv1 = new Vector2(1.0f - (float) i / (line.numPositions-1), 1.0f);
+                uv.Add(uv1);
+            }
         }
 
         for (int i = 0; i < line.numPositions - 1; i++)
@@ -61,9 +78,11 @@ public class PageMesh : MonoBehaviour {
 
         mesh.vertices = verts.ToArray();
         mesh.triangles = tris.ToArray();
+        mesh.uv = uv.ToArray();
 
         mFilter.mesh = mesh;
         mRenderer.enabled = true;
+
     }
 
     void UpdateMesh()
